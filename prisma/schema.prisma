@@ -1,0 +1,594 @@
+
+generator client {
+  provider = "prisma-client-js"
+  // output   = "../generated/prisma"
+}
+
+datasource db {
+  provider = "mysql"
+  url      = env("DATABASE_URL")
+}
+
+model Taxes {
+  id         Int      @id @default(autoincrement())
+  name       String   
+  rate       Float  
+  companies  Company[] 
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+}
+
+model TypeCompany {
+  id Int @id @default(autoincrement())
+  name String @unique
+  status Int @default(1)
+  company Company[]
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model Coins {
+  id            Int @id @default(autoincrement())
+  name          String
+  symbol       String @unique
+  coinsCompany  CoinsCompany[]
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+}
+
+
+model Payments {
+  id          String @id @default(uuid())
+  establishment_id  String  
+  establishment    Establishment @relation(fields: [establishment_id], references: [id])
+  coins_id    Int @default(1)
+  coins       CoinsCompany @relation(fields: [coins_id], references: [id])
+  name        String 
+  description String 
+  image       String?
+  status      Int 
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  sale Sale[]
+  salePayment SalePayment[]
+}
+
+model CoinsCompany {
+  id          Int @id @default(autoincrement())
+  establishment_id  String  
+  establishment  Establishment @relation(fields: [establishment_id], references: [id])
+  coins_id    Int @default(1)
+  coins       Coins @relation(fields: [coins_id], references: [id])
+  status      Int
+  payment     Payments[]
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  sale Sale[]
+  salePayment SalePayment[]
+}
+
+
+model Role {
+  id Int @id @default(autoincrement())
+  name String @unique
+  status Int @default(1)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  users User[]
+}
+
+
+model User {
+  id String @id @default(uuid())
+  name String 
+  email String @unique
+  password String 
+  role_id Int
+  role Role @relation(fields: [role_id], references: [id])
+  companyId   String?   
+  company     Company? @relation(fields: [companyId], references: [id])
+  establishment_id  String?  
+  establishment    Establishment? @relation(fields: [establishment_id], references: [id])
+  status Int @default(1)
+  refreshToken String? 
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  collaborator Collaborator?
+}
+
+model Company {
+  id String @id @default(uuid())
+  identification String @unique
+  bussines_name String @unique
+  type_company_id Int 
+  type_company TypeCompany @relation(fields: [type_company_id], references: [id])
+  trade_name String 
+  phone String
+  address String
+  color_primary String @default("#000000")
+  status Int @default(1)
+  tax_id Int     
+  tax    Taxes @relation(fields: [tax_id], references: [id])
+  logo_path    String?
+  logo_ticket  Int @default(0)
+  isReturnMoney  Int @default(0)
+  isEventSocials Int @default(0)
+  isEventCorporate Int @default(0)
+  isPolityPayment Int @default(0)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+  users User[]
+  establishment  Establishment[]
+}
+
+
+model Establishment  {
+  id          String   @id @default(uuid())
+  name        String 
+  city        Int
+  province    Int
+  district    Int 
+  companyId   String
+  company     Company? @relation(fields: [companyId], references: [id])
+  token String?
+  status Int @default(1)
+  opening_establishment Int @default(1)
+  isActive_payment Int @default(0)
+  isOnline Int @default(1) 
+  isService_house Int @default(0)
+  banner_path String?
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+  user  User[]
+  coin CoinsCompany[]
+  payment     Payments[]
+  clients Client[]
+  services Service[]
+  serviceCategories ServiceCategory[]
+  productCategories ProductCategory[]
+  products Product[]
+  providers Provider[]
+  event Event[]
+  localEvent LocalEvent[]
+  packageService packageService[]
+  TypeComponentMenu TypeComponentMenu[]
+  StructureMenu StructureMenu[]
+  BuildYourMenu BuildYourMenu[]
+  cotizacion Cotizacion[]
+  sale Sale[]
+}
+
+model Collaborator {
+  id String @id @default(uuid())
+  name String 
+  description String 
+  salary Decimal @db.Decimal(10,2)
+  emergency_contact String? 
+  address String?
+  specialties String
+  status Int @default(1)
+  user_id String @unique
+  user User @relation(fields: [user_id], references: [id])
+}
+
+
+model Client {
+  id String @id @default(uuid())
+  name String
+  phone String
+  email String
+  establishment_id String
+  establishment Establishment @relation(fields: [establishment_id], references: [id])
+  status Int @default(1)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  cotizacion Cotizacion[]
+  sale Sale[]
+}
+
+
+model Event {
+  id          String @id @default(uuid())
+  name        String 
+  description String?
+  type        TypeEvent
+  isIgv       Int @default(0)
+  status      Int @default(1)
+  establishment_id String 
+  establishment Establishment @relation(fields: [establishment_id], references: [id])
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  packageService packageService[]
+}
+
+
+model Service {
+  id String @id @default(uuid())
+  name String
+  duration Int // duración en minutos
+  price Float // precio sin igv
+  establishment_id String
+  establishment Establishment @relation(fields: [establishment_id], references: [id])
+  category_id String
+  category ServiceCategory @relation(fields: [category_id], references: [id])
+  image String?
+  status Int @default(1)
+  isProducts Int @default(0)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  packageServiceGift packageServiceGift[]
+  productService ProductService[]
+  packageForService packageForService[]
+  cotizacionServices CotizacionService[]
+  saleService saleService[]
+}
+
+model ServiceCategory {
+  id String @id @default(uuid())
+  name String
+  description String?
+  establishment_id String
+  establishment Establishment @relation(fields: [establishment_id], references: [id])
+  status Int @default(1)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  services Service[]
+}
+
+
+model ProductCategory {
+  id String @id @default(uuid())
+  name String
+  description String?
+  establishment_id String
+  establishment Establishment @relation(fields: [establishment_id], references: [id])
+  status Int @default(1)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  products Product[]
+}
+
+
+model ProductService {
+  id         String   @id @default(uuid())
+  productId  String
+  serviceId  String
+  status     Int @default(1)
+  product    Product  @relation(fields: [productId], references: [id])
+  service    Service  @relation(fields: [serviceId], references: [id])
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+
+model Provider {
+  id String @id @default(uuid())
+  name String 
+  bussines_name String 
+  identification String
+  email String?
+  phone String?
+  status Int @default(1)
+  establishment_id String 
+  establishment Establishment @relation(fields: [establishment_id], references: [id])
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model StructureMenu {
+  id String @id @default(uuid())
+  name String
+  order Int @default(0)
+  status Int @default(1)
+  establishment_id String 
+  establishment Establishment @relation(fields: [establishment_id], references: [id])
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  buildYourMenu BuildYourMenu[]
+}
+
+// ARMA TU MENU
+model BuildYourMenu {
+  id String @id @default(uuid())
+  type_component_menu_id String 
+  typeComponentMenu TypeComponentMenu @relation(fields: [type_component_menu_id], references: [id])
+  structureMenuId String 
+  structureMenu StructureMenu @relation(fields: [structureMenuId], references: [id])
+  product_id String 
+  product Product @relation(fields: [product_id], references: [id])
+  establishmentId String 
+  establishment Establishment @relation(fields: [establishmentId], references: [id])
+  status Int @default(1)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  CotizacionMenu CotizacionMenu[]
+  saleMenu SaleMenu[]
+}
+
+model TypeComponentMenu {
+  id String @id @default(uuid())
+  name String
+  description String?
+  status Int @default(1)
+  price Decimal @db.Decimal(10,2)
+  establishmentId String 
+  establishment Establishment @relation(fields: [establishmentId], references: [id])
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  buildYourMenu BuildYourMenu[]
+}
+
+model Product {
+  id String @id @default(uuid())
+  name String
+  description String?
+  type String
+  is_Company Int @default(1) // el producto es propio ?
+  price Float
+  stock Int @default(0)
+  category_id String
+  category ProductCategory @relation(fields: [category_id], references: [id])
+  establishment_id String
+  label String? // etiqueta de producto
+  color String? // color para el producto
+  establishment Establishment @relation(fields: [establishment_id], references: [id])
+  image String?
+  status Int @default(1)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  packageServiceGift packageServiceGift[]
+  buildYourMenu BuildYourMenu[]
+  productService ProductService[]
+  packageForProduct packageForProduct[]
+  CotizacionProduct CotizacionProduct[]
+  saleProduct saleProduct[]
+}
+
+
+model packageService {
+  id String  @id @default(uuid())
+  name String
+  description String?
+  quantity_person Int @default(1)
+  price_person Decimal @db.Decimal(10,2)
+  total_package Decimal @db.Decimal(10,2)
+  event_id String
+  event Event @relation(fields: [event_id], references: [id])
+  local_id String
+  localEvent LocalEvent @relation(fields: [local_id], references: [id])
+  isGift Int @default(1) // CUENTA CON REGALO EL PAQUETE?
+  status Int @default(1)
+  isDetail Int @default(0)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  establishment_id String
+  establishment Establishment @relation(fields: [establishment_id], references: [id])
+  packageServiceGift packageServiceGift[]
+  cotizacion Cotizacion[]
+  packageForService packageForService[]
+  packageForProduct packageForProduct[]
+}
+
+
+model packageForService { 
+  id String @id  @default(uuid())
+  packageId String 
+  package packageService @relation(fields: [packageId], references: [id])
+  serviceId String 
+  service Service @relation(fields: [serviceId], references: [id])
+  quantity Int @default(1)
+  status Int @default(1)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model packageForProduct {
+  id String @id  @default(uuid())
+  packageId String 
+  package packageService @relation(fields: [packageId], references: [id])
+  productId String 
+  product Product @relation(fields: [productId], references: [id])
+  quantity Int @default(1)
+  status Int @default(1)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model LocalEvent {
+  id String @id @default(uuid())
+  name String 
+  capacity Int 
+  characteristics Json
+  description String?
+  ubication String 
+  reference String 
+  price_aprox Decimal @db.Decimal(10,2)
+  status Int @default(1)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  establishment_id String 
+  establishment Establishment @relation(fields: [establishment_id], references: [id])
+  packageService packageService[]
+}
+
+model packageServiceGift {
+  id String  @id @default(uuid())
+  package_id String 
+  packageService packageService @relation(fields: [package_id], references: [id])
+  product_id String?
+  product Product? @relation(fields: [product_id], references: [id])
+  service_id String?
+  service Service? @relation(fields: [service_id], references: [id])
+  status Int @default(1)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+
+model Cotizacion {
+  id String @id @default(uuid())
+  package_id String 
+  event_date String?
+  type_date_event String @default("TENTATIVA")
+  event_time_day String @default("dia")
+  establishment_id String 
+  client_id String 
+  notes String?
+  quantity_person Int 
+  price_person Decimal @db.Decimal(10,2) 
+  local_event String  
+  total Decimal @db.Decimal(10,2)
+  status Int @default(1)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  client Client @relation(fields: [client_id], references: [id])
+  packageService packageService @relation(fields: [package_id], references: [id])
+  establishment Establishment @relation(fields: [establishment_id], references: [id])
+  cotizacionProducts CotizacionProduct[]
+  cotizacionServices CotizacionService[]
+  cotizacionMenu CotizacionMenu[]
+  sale Sale[]
+}
+
+
+model CotizacionProduct {
+  id String @id @default(uuid())
+  cotizacion_id String 
+  cotizacion Cotizacion @relation(fields: [cotizacion_id], references: [id])
+  product_id String 
+  product Product @relation(fields: [product_id], references: [id])
+  quantity Int @default(1)
+  price Decimal @db.Decimal(10,2)
+  status Int @default(1)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model CotizacionService {
+  id String @id @default(uuid())
+  cotizacion_id String 
+  cotizacion Cotizacion @relation(fields: [cotizacion_id], references: [id])
+  service_id String 
+  service Service @relation(fields: [service_id], references: [id])
+  quantity Int @default(1)
+  price Decimal @db.Decimal(10,2)
+  status Int @default(1)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model CotizacionMenu {
+  id String @id @default(uuid())
+  cotizacion_id String
+  cotizacion Cotizacion @relation(fields: [cotizacion_id], references: [id])
+  build_your_menu_id String
+  buildYourMenu BuildYourMenu @relation(fields: [build_your_menu_id], references: [id])
+  quantity Int @default(1)
+  price Decimal @db.Decimal(10,2)
+  status Int @default(1)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model Sale {
+  id String @id @default(uuid())
+  cotizacion_id String?
+  cotizacion Cotizacion? @relation(fields: [cotizacion_id], references: [id])
+  client_id String?
+  client Client? @relation(fields: [client_id], references: [id])
+  notes String?
+  coins_id Int?
+  coins CoinsCompany? @relation(fields: [coins_id], references: [id])
+  sub_total Decimal @db.Decimal(10,2)
+  discount Decimal @db.Decimal(10,2)
+  tax_total Decimal @db.Decimal(10,2)
+  total Decimal @db.Decimal(10,2)
+  payment_id String?
+  payment Payments? @relation(fields: [payment_id], references: [id])
+  payment_terms String?
+  due_date DateTime?
+  anticipo Decimal? @db.Decimal(10,2)
+  saldo_pendiente Decimal? @db.Decimal(10,2)
+  establishment_id String
+  establishment Establishment @relation(fields: [establishment_id], references: [id])
+  status Int @default(1)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  cancel_reason String?
+  saleProduct saleProduct[]
+  saleService saleService[]
+  saleMenu SaleMenu[]
+  salePayment SalePayment[]
+}
+
+model saleProduct {
+  id String @id @default(uuid())
+  sale_id String 
+  sale Sale @relation(fields: [sale_id], references: [id])
+  product_id String 
+  product Product @relation(fields: [product_id], references: [id])
+  description String 
+  quantity Int @default(1)
+  unit_price Decimal @db.Decimal(10,2)
+  discount Decimal @db.Decimal(10,2)
+  tax_rate Float
+  tax_amount Decimal @db.Decimal(10,2)
+  line_total Decimal @db.Decimal(10,2)
+  status Int @default(1)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model saleService {
+  id String @id @default(uuid())
+  sale_id String 
+  sale Sale @relation(fields: [sale_id], references: [id])
+  service_id String 
+  service Service @relation(fields: [service_id], references: [id])
+  description String 
+  quantity Int @default(1)
+  unit_price Decimal @db.Decimal(10,2)
+  discount Decimal @db.Decimal(10,2)
+  tax_rate Float
+  tax_amount Decimal @db.Decimal(10,2)
+  line_total Decimal @db.Decimal(10,2)
+  status Int @default(1)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model SaleMenu {
+  id String @id @default(uuid())
+  sale_id String 
+  sale Sale @relation(fields: [sale_id], references: [id])
+  build_your_menu_id String 
+  buildYourMenu BuildYourMenu @relation(fields: [build_your_menu_id], references: [id])
+  description String 
+  quantity Int @default(1)
+  price Decimal @db.Decimal(10,2)
+  line_total Decimal @db.Decimal(10,2)
+  status Int @default(1)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model SalePayment {
+  id String @id @default(uuid())
+  sale_id String 
+  sale Sale @relation(fields: [sale_id], references: [id])
+  payment_id String 
+  payment Payments @relation(fields: [payment_id], references: [id])
+  amount Decimal @db.Decimal(10,2)
+  payment_date DateTime @default(now())
+  reference String?
+  coins_id Int 
+  coins CoinsCompany @relation(fields: [coins_id], references: [id])
+  status Int @default(1)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+enum TypeEvent {
+  SOCIALES
+  CORPORATIVOS
+}
