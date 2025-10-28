@@ -372,10 +372,60 @@ export const convertCotizacionToSaleController = async (req: Request, res: Respo
       data: { saleId: sale.id },
     });
   } catch (error: any) {
-    console.log(error);
     return res.status(500).json({
       status: false,
       message: error?.message || "Error interno al convertir la cotización",
     });
   }
 };
+
+
+export const updateStatusCotizacionController = async( req: Request, res: Response) => {
+  try {
+    const { quoteId } = req.params as { quoteId: string };
+    const { status } = req.body;
+
+    // Buscar cotización con sus líneas
+    const cotizacion = await prisma.cotizacion.findUnique({
+      where: { id: quoteId },
+      include: {
+        client: true,
+        establishment: true,
+        cotizacionProducts: { include: { product: true } },
+        cotizacionServices: { include: { service: true } },
+        cotizacionMenu: {
+          include: {
+            buildYourMenu: { include: { product: true, structureMenu: true } },
+          },
+        },
+      },
+    });
+
+    if (!cotizacion) {
+      return res.status(404).json({ status: false, message: "Cotización no encontrada" });
+    }
+
+    // actualizar estado 
+    const resp = await prisma.cotizacion.update({
+      where: { id: quoteId },
+      data: {
+        status: status
+      }
+    })
+
+    if ( !resp ) {
+      return res.status(500).json({status: false, message: "Ocurrio un error inesperado."})
+    }
+
+    return res.status(200).json({
+      status: true, 
+      message: "Se actualizo la cotizacion correctamente."
+    })
+
+  } catch ( error: any ) {
+    return res.status(500).json({
+      status: false,
+      message: error?.message || "Error interno al convertir la cotización",
+    });
+  }
+}
