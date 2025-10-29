@@ -265,6 +265,12 @@ export const convertCotizacionToSaleController = async (req: Request, res: Respo
       include: {
         client: true,
         establishment: true,
+        packageService: {
+          include: {
+            event: true,
+            localEvent: true
+          }
+        },
         cotizacionProducts: { include: { product: true } },
         cotizacionServices: { include: { service: true } },
         cotizacionMenu: {
@@ -292,7 +298,8 @@ export const convertCotizacionToSaleController = async (req: Request, res: Respo
     const subTotalProducts = sumLines(cotizacion.cotizacionProducts);
     const subTotalServices = sumLines(cotizacion.cotizacionServices);
     const subTotalMenus = sumLines(cotizacion.cotizacionMenu);
-    const sub_total = Number((subTotalProducts + subTotalServices + subTotalMenus).toFixed(2));
+    // const sub_total = Number((subTotalProducts + subTotalServices + subTotalMenus).toFixed(2));
+    const sub_total = Number(cotizacion.total)
     const discount = 0;
     const tax_total = 0;
     const total = Number(cotizacion.total);
@@ -356,6 +363,29 @@ export const convertCotizacionToSaleController = async (req: Request, res: Respo
           status: 1,
         }));
         await tx.saleMenu.createMany({ data: items });
+      }
+
+      if (cotizacion.event_date) {
+        const eventDate = new Date(cotizacion.event_date);
+        
+        // Obtener información del evento
+        const eventType = cotizacion.packageService?.event?.type || "SOCIALES";
+        const location = cotizacion.local_event || cotizacion.packageService?.localEvent?.name || "";
+        const timeStart = cotizacion.event_time_day === "noche" ? "18:00" : "12:00";
+        
+        await tx.agenda.create({
+          data: {
+            sale_id: createdSale.id,
+            event_date: eventDate,
+            event_time_start: timeStart,
+            event_time_end: cotizacion.event_time_day === "noche" ? "23:59" : "18:00",
+            event_type: eventType,
+            location: location,
+            guests_count: cotizacion.quantity_person,
+            notes: cotizacion.notes || null,
+            status: cotizacion.type_date_event === "TENTATIVA" ? 2 : 1, // 1: Confirmado, 2: Pendiente
+          },
+        });
       }
 
       // Opcional: marcar cotización como convertida (status 2)
@@ -427,5 +457,202 @@ export const updateStatusCotizacionController = async( req: Request, res: Respon
       status: false,
       message: error?.message || "Error interno al convertir la cotización",
     });
+  }
+}
+
+
+
+// Listar todos los eventos de la agenda por establecimiento
+export const getAgendaEventsController = async (req: Request, res: Response) => {
+  try {
+    const { establishmentId } = req.params
+
+    if (!establishmentId) {
+      return res.status(400).json({
+        status: false,
+        message: "El ID del establecimiento es requerido"
+      })
+    }
+
+    const events = await prisma.agenda.findMany({
+      where: {
+        sale: {
+          establishment_id: establishmentId
+        }
+      },
+      include: {
+        sale: {
+          include: {
+            client: true,
+            cotizacion: {
+              include: {
+                packageService: {
+                  include: {
+                    event: true,
+                    localEvent: true
+                  }
+                }
+              }
+            }
+          }
+        }
+      },
+      orderBy: {
+        event_date: 'asc'
+      }
+    })
+
+    return res.status(200).json({
+      status: true,
+      data: events
+    })
+  } catch (error: any) {
+    return res.status(500).json({
+      status: false,
+      message: error?.message || "Error al obtener los eventos de la agenda"
+    })
+  }
+}
+
+// Obtener eventos de un mes específico
+export const getAgendaEventsByMonthController = async (req: Request, res: Response) => {
+  try {
+    const { establishmentId } = req.params
+    const { year, month } = req.query
+
+    if (!establishmentId) {
+      return res.status(400).json({
+        status: false,
+        message: "El ID del establecimiento es requerido"
+      })
+    }
+
+    const startDate = new Date(Date.UTC(Number(year), Number(month) - 1, 1));
+    const endDate = new Date(Date.UTC(Number(year), Number(month), 1));
+
+    const events = await prisma.agenda.findMany({
+      where: {
+        sale: {
+          establishment_id: establishmentId
+        },
+        event_date: {
+          gte: startDate,
+          lte: endDate
+        }
+      },
+      include: {
+        sale: {
+          include: {
+            client: true,
+            cotizacion: {
+              include: {
+                packageService: {
+                  include: {
+                    event: true,
+                    localEvent: true
+                  }
+                }
+              }
+            }
+          }
+        }
+      },
+      orderBy: {
+        event_date: 'asc'
+      }
+    })
+
+    return res.status(200).json({
+      status: true,
+      data: events
+    })
+  } catch (error: any) {
+    return res.status(500).json({
+      status: false,
+      message: error?.message || "Error al obtener los eventos del mes"
+    })
+  }
+}
+
+// Obtener un evento específico
+export const getAgendaEventByIdController = async (req: Request, res: Response) => {
+  try {
+    const { eventId } = req.params
+
+    const event = await prisma.agenda.findUnique({
+      where: { id: eventId! },
+      include: {
+        sale: {
+          include: {
+            client: true,
+            cotizacion: {
+              include: {
+                packageService: {
+                  include: {
+                    event: true,
+                    localEvent: true
+                  }
+                }
+              }
+            },
+            saleProduct: {
+              include: {
+                product: true
+              }
+            },
+            saleService: {
+              include: {
+                service: true
+              }
+            }
+          }
+        }
+      }
+    })
+
+    if (!event) {
+      return res.status(404).json({
+        status: false,
+        message: "Evento no encontrado"
+      })
+    }
+
+    return res.status(200).json({
+      status: true,
+      data: event
+    })
+  } catch (error: any) {
+    return res.status(500).json({
+      status: false,
+      message: error?.message || "Error al obtener el evento"
+    })
+  }
+}
+
+// Actualizar estado del evento
+export const updateAgendaEventStatusController = async (req: Request, res: Response) => {
+  try {
+    const { eventId } = req.params
+    const { status, notes } = req.body
+
+    const updatedEvent = await prisma.agenda.update({
+      where: { id: eventId! },
+      data: {
+        status,
+        notes,
+        updatedAt: new Date()
+      }
+    })
+
+    return res.status(200).json({
+      status: true,
+      message: "Estado del evento actualizado correctamente",
+      data: updatedEvent
+    })
+  } catch (error: any) {
+    return res.status(500).json({
+      status: false,
+      message: error?.message || "Error al actualizar el estado del evento"
+    })
   }
 }
