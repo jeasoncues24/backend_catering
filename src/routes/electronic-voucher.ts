@@ -2,6 +2,7 @@ import { Router } from 'express';
 import {
   generateElectronicVoucherController,
   getElectronicVoucherController,
+  listVoucherElectronicsController,
   sendVoucherByEmailController
 } from '../controllers/electronic-voucher.controller';
 
@@ -15,6 +16,9 @@ router.get('/:saleId/voucher', getElectronicVoucherController);
 
 // Enviar comprobante por email
 router.post('/:saleId/voucher/send-email', sendVoucherByEmailController);
+
+
+router.get('/list/:establishmentId', listVoucherElectronicsController);
 
 export { router };
 

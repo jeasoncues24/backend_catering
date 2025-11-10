@@ -1,6 +1,12 @@
 // controllers/electronic-voucher.controller.ts
 import { Request, Response } from 'express';
 import { prisma } from '../config/db';
+import { 
+  facturacionConfig, 
+  getTipoDocumento, 
+  formatNumber, 
+  formatFechaEmision 
+} from '../config/facturacion';
 
 /**
  * GENERAR COMPROBANTE ELECTRÓNICO
@@ -85,7 +91,10 @@ export const generateElectronicVoucherController = async (req: Request, res: Res
     }
 
     // Generar número correlativo
-    const series = voucherType === 'factura' ? 'F001' : 'B001';
+    const series = voucherType === 'factura' 
+      ? facturacionConfig.series.factura 
+      : facturacionConfig.series.boleta;
+    
     const voucherNumber = await getNextVoucherNumber(
       sale.establishment_id,
       voucherType,
@@ -97,6 +106,7 @@ export const generateElectronicVoucherController = async (req: Request, res: Res
     // Preparar items del comprobante
     const items = [
       ...sale.saleProduct.map(item => ({
+        codigo: item.product.id.slice(0, 10), // Código corto del producto
         description: item.product.name,
         quantity: item.quantity,
         unitPrice: parseFloat(item.unit_price.toString()),
@@ -105,6 +115,7 @@ export const generateElectronicVoucherController = async (req: Request, res: Res
         total: parseFloat(item.line_total.toString())
       })),
       ...sale.saleService.map(item => ({
+        codigo: item.service.id.slice(0, 10), // Código corto del servicio
         description: item.service.name,
         quantity: item.quantity,
         unitPrice: parseFloat(item.unit_price.toString()),
@@ -171,6 +182,7 @@ export const generateElectronicVoucherController = async (req: Request, res: Res
         sunat_description: sunatResponse.sunatDescription,
         sunat_response: sunatResponse,
         status: sunatResponse.sunatCode === '0' ? 2 : 3, // 2: Aceptado, 3: Rechazado
+        // status: 1,
         created_by: req.body.userId // Si tienes autenticación
       }
     });
@@ -181,16 +193,15 @@ export const generateElectronicVoucherController = async (req: Request, res: Res
       data: {
         id: electronicVoucher.id,
         voucherNumber: fullNumber,
-        xmlUrl: sunatResponse.xmlUrl,
-        pdfUrl: sunatResponse.pdfUrl,
-        cdrUrl: sunatResponse.cdrUrl,
-        sunatCode: sunatResponse.sunatCode,
-        sunatDescription: sunatResponse.sunatDescription
+        xml_url: sunatResponse.xmlUrl,
+        pdf_url: sunatResponse.pdfUrl,
+        cdr_url: sunatResponse.cdrUrl,
+        sunat_code: sunatResponse.sunatCode,
+        sunat_description: sunatResponse.sunatDescription,
       }
     });
 
   } catch (error: any) {
-    console.error('Error al generar comprobante:', error);
     return res.status(500).json({
       status: false,
       message: error?.message || 'Error al generar comprobante electrónico'
@@ -251,64 +262,68 @@ async function getNextVoucherNumber(
  */
 async function sendToElectronicBillingProvider(voucherData: any) {
   try {
+    const IGV_RATE = 0.10; // o 0.18 si corresponde realmente
+
     // Mapear tipo de comprobante
-    const tipoComprobante = voucherData.type === 'factura' ? 1 : 2; // 1: Factura, 2: Boleta
-    
-    // Mapear tipo de documento del cliente
-    const clienteDocType = voucherData.client.documentType === 'ruc' ? '6' : '1'; // 6: RUC, 1: DNI
-    
-    // Fecha actual en formato requerido
-    const fechaEmision = new Date(voucherData.issueDate).toISOString()
+    const tipoComprobante = voucherData.type === 'factura' ? 2 : 1;
+    const clienteDocType = voucherData.client.documentType === 'ruc' ? '6' : '1';
+
+    const fechaEmision = new Date(voucherData.issueDate)
+      .toISOString()
       .replace('T', ' ')
       .substring(0, 19);
-    
-    // Calcular totales
-    const totalGravada = parseFloat(voucherData.amounts.subtotal.toFixed(2));
-    const totalIgv = parseFloat(voucherData.amounts.igv.toFixed(2));
-    const total = parseFloat(voucherData.amounts.total.toFixed(2));
-    
-    // Mapear items
+
+    // ITEMS: suponemos unitPrice viene SIN IGV
     const items = voucherData.items.map((item: any) => {
-      const valorUnitario = parseFloat((item.unitPrice / 1.18).toFixed(8)); // Sin IGV
-      const precioUnitario = parseFloat(item.unitPrice.toFixed(8)); // Con IGV
-      const igvItem = parseFloat((valorUnitario * 0.18 * item.quantity).toFixed(8));
-      const subtotalItem = parseFloat((valorUnitario * item.quantity).toFixed(8));
-      const totalItem = parseFloat((precioUnitario * item.quantity).toFixed(8));
-      
+      const valorUnitario = Number(item.unitPrice); // sin IGV
+      const precioUnitario = Number((valorUnitario * (1 + IGV_RATE)).toFixed(8)); // con IGV
+      const cantidad = Number(item.quantity);
+
+      const subtotal = Number((valorUnitario * cantidad).toFixed(8));       // base
+      const igv = Number((subtotal * IGV_RATE).toFixed(8));                 // IGV
+      const total = Number((subtotal + igv).toFixed(8));                    // con IGV
+
       return {
-        unidad_de_medida: "NIU", // Unidad
-        codigo: item.codigo || "PROD001", // Código del producto (debes enviarlo desde el frontend)
+        unidad_de_medida: "NIU",
+        codigo: item.codigo || "PROD001",
         descripcion: item.description,
-        cantidad: item.quantity.toFixed(8),
+        cantidad: cantidad.toFixed(8),
         valor_unitario: valorUnitario.toFixed(8),
         precio_unitario: precioUnitario.toFixed(8),
-        afectacion: "10", // 10: Gravado - Operación Onerosa
-        igv: igvItem.toFixed(8),
-        subtotal: subtotalItem.toFixed(8),
-        total: totalItem.toFixed(8),
+        afectacion: "10",
+        igv: igv.toFixed(8),
+        subtotal: subtotal.toFixed(8),
+        total: total.toFixed(8),
         icbper: null,
-        codigo_producto_sunat: "50192701" // Código SUNAT genérico de servicios
+        codigo_producto_sunat: "50192701"
       };
     });
-    
-    // Construir payload para el proveedor
+
+    // Totales desde las líneas (clave para evitar 3277)
+    const totalGravada = items
+      .reduce((sum: any, it: any) => sum + Number(it.subtotal), 0);
+    const totalIgv = items
+      .reduce((sum: any, it: any) => sum + Number(it.igv), 0);
+    const total = items
+      .reduce((sum: any, it: any) => sum + Number(it.total), 0);
+
     const payload = {
       tipo_de_comprobante: tipoComprobante,
       operacion: "generar_comprobante",
       cliente_tipo_de_documento: clienteDocType,
       cliente_numero_de_documento: voucherData.client.documentNumber,
-      cliente_denominacion: voucherData.client.businessName,
+      cliente_denominacion: voucherData.client.businessName || voucherData.client.name,
       cliente_direccion: voucherData.client.address,
       cliente_email: voucherData.client.email,
       cliente_email2: null,
       cliente_email3: null,
       serie: voucherData.series,
-      correlativo: parseInt(voucherData.number),
+      correlativo: Number(voucherData.number),
       fecha_de_emision: fechaEmision,
       telefono: voucherData.client.phone || null,
-      moneda: "PEN", // Soles peruanos
+      moneda: "PEN",
       tipo_de_cambio: "1.00",
-      porcentaje_igv: "18.00", // IGV 18%
+      porcentaje_igv: (IGV_RATE * 100).toFixed(2), // "10.00" o "18.00"
       creditos: null,
       total_descuentos: "0.00000000",
       porcentaje_descuento: "0.00000000",
@@ -328,48 +343,48 @@ async function sendToElectronicBillingProvider(voucherData: any) {
       total_impuestos_bolsas: "0.00000000",
       total_igv: totalIgv.toFixed(8),
       total: total.toFixed(8),
-      items: items,
+      items,
       detraccion: null,
       porcentaje_detraccion: null,
       cuenta_bancaria_detraccion: null,
       monto_detraccion: null,
       codigo_detraccion: null
     };
+
+    // Aquí harías la llamada real a tu API de facturación 
+    const API_URL = process.env.FACTURACION_API_URL || 'https://apiusqayfact.com/comprobantes'; 
+    const API_TOKEN = process.env.FACTURACION_API_TOKEN; 
+    const response = await fetch(API_URL, { 
+      method: 'POST', 
+      headers: 
+        { 
+          'Content-Type': 'application/json', 
+          'Authorization': `Bearer ${API_TOKEN}`
+        }, 
+      body: JSON.stringify(payload) 
+    }); 
     
-    // Aquí harías la llamada real a tu API de facturación
-    const API_URL = process.env.FACTURACION_API_URL || 'https://api.tuproveedor.com/comprobantes';
-    const API_TOKEN = process.env.FACTURACION_API_TOKEN;
+    if (!response.ok) 
+      { 
+        throw new Error(`Error del proveedor: ${response.statusText}`); 
+      } 
     
-    const response = await fetch(API_URL, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${API_TOKEN}`
-      },
-      body: JSON.stringify(payload)
-    });
-    
-    if (!response.ok) {
-      throw new Error(`Error del proveedor: ${response.statusText}`);
-    }
-    
-    const result = await response.json();
-    
-    // Mapear respuesta del proveedor al formato que esperamos
-    return {
-      success: result.success || true,
-      xmlUrl: result.enlace_del_xml || result.xml_url || '',
-      pdfUrl: result.enlace_del_pdf || result.pdf_url || '',
-      cdrUrl: result.enlace_del_cdr || result.cdr_url || '',
-      sunatCode: result.codigo_sunat || result.sunat_code || '0',
-      sunatDescription: result.descripcion_sunat || result.sunat_description || 'Aceptado'
+    const result = await response.json(); 
+    return { 
+      success: result.success || true, 
+      xmlUrl: result.enlace_del_xml || result.xml_url || '', 
+      pdfUrl: result.enlace_del_pdf || result.pdf_url || '', 
+      cdrUrl: result.enlace_del_cdr || result.cdr_url || '', 
+      sunatCode: result.codigo_sunat || result.sunat_code || '0', 
+      sunatDescription: result.descripcion_sunat || result.sunat_description || 'Aceptado' 
     };
-    
+
   } catch (error: any) {
     console.error('Error al enviar al proveedor:', error);
     throw new Error(`Error en facturación electrónica: ${error.message}`);
   }
 }
+
 
 /**
  * OBTENER COMPROBANTE ELECTRÓNICO
@@ -601,3 +616,56 @@ export const cancelElectronicVoucherController = async (req: Request, res: Respo
     });
   }
 };
+
+
+export const listVoucherElectronicsController =  async ( req: Request, res: Response ) => {
+  try {
+    const { establishmentId } = req.params;
+
+    if ( !establishmentId ) {
+      return res.status(404).json({
+        status: false,
+        message: 'El id de la sucursal es obligatorio'
+      })
+    }
+
+    const vouchers = await prisma.electronicVoucher.findMany({
+      where: {
+        sale: {
+          establishment_id: establishmentId
+        }
+      },
+      include: {
+        sale: {
+          select: {
+            id: true,
+            total: true,
+            status: true,
+            client: {
+              select: {
+                id: true,
+                name: true,
+                email: true,
+              }
+            }
+          }
+        }
+      },
+      orderBy: {
+        issue_date: 'desc' 
+      }
+    });
+
+    return res.status(200).json({
+      status: true,
+      data: vouchers
+    });
+
+
+  } catch (error: any) {
+    return res.status(500).json({
+      status: false,
+      message: error?.message || 'Error al obtener los comprobantes'
+    });
+  }
+}
