@@ -8,6 +8,6 @@ const router = Router();
 
 router.get("/:establishment_id", verifyTokenMiddleware, asyncHandler(listAllProviderController));
 router.post("/", verifyTokenMiddleware, asyncHandler(addProviderController))
-router.get("/:establishment_id/active", verifyTokenMiddleware, asyncHandler(listProviderActivesController));
+router.get("/:establishment_id/active", asyncHandler(listProviderActivesController));
 
 export { router }

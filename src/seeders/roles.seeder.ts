@@ -24,6 +24,10 @@ export async function seedRoles() {
       name: 'CLIENT',
       status: 1,
     },
+    {
+      name: 'MAESTRO_CEREMONIA',
+      status: 1
+    }
   ];
 
   for (const role of roles) {

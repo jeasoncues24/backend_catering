@@ -1,7 +1,7 @@
 import { Router } from "express";
 import { verifyTokenMiddleware } from "../utils/jwt.handle";
 import { asyncHandler } from "../utils/asyncHandler";
-import { addServiceController, deleteServiceController, getServiceListController, listActivesController, listServicesForQuotesController, updateServiceController, amarrarProductosController } from "../controllers/service.controller";
+import { addServiceController, deleteServiceController, getServiceListController, listActivesController, listServicesForQuotesController, updateServiceController, amarrarProductosController, amarrarColaboradorController, listColaboresAmarradosController } from "../controllers/service.controller";
 
 const router = Router();
 
@@ -12,5 +12,7 @@ router.get('/actives/:establishment_id', verifyTokenMiddleware, asyncHandler(lis
 router.put('/:id', verifyTokenMiddleware, asyncHandler(updateServiceController));
 router.post('/quotes', asyncHandler(listServicesForQuotesController));
 router.post('/amarrar-productos', asyncHandler(amarrarProductosController));
+router.post('/amarrar-colaborador', asyncHandler(amarrarColaboradorController));
+router.get('/list-colaboradores/:serviceId', asyncHandler(listColaboresAmarradosController))
 
 export { router };

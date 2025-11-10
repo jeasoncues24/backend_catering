@@ -38,6 +38,29 @@ export const createServiceProduct = async (data: {
   return amarre
 };
 
+export const listColaboresService = async ( serviceId: string ) => {
+    return await prisma.colaboradorService.findMany({
+        where: {
+            serviceId
+        }
+    })
+}
+
+export const createServiceColaborador = async (data: {
+  colaboradorId: string;
+  serviceId: string;
+  status: number;
+}) => {
+  const amarre =  await prisma.colaboradorService.create({
+    data: {
+      colaboradorId: data.colaboradorId,
+      serviceId: data.serviceId,
+      status: data.status,
+    },
+  });
+
+  return amarre
+};
 
 export const addServiceRepository = async ( data: Partial<any>) => {
     return await prisma.service.create({

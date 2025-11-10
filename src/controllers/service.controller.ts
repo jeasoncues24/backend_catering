@@ -1,5 +1,5 @@
 import { Request, Response } from "express";
-import { addServiceS, amarrarProductosService, deleteServiceS, getServiceListS, listActivesService, listServicesForQuotesService, updateServiceS } from "../services/service.service";
+import { addServiceS, amarrarColaboradorService, amarrarProductosService, deleteServiceS, getServiceListS, listActivesService, listColaboradorService, listServicesForQuotesService, updateServiceS } from "../services/service.service";
 import uploadServices from "../middlewares/upload.services";
 
 const addServiceController = async ( req: Request, res: Response ) => {
@@ -49,9 +49,61 @@ const amarrarProductosController = async ( req: Request, res: Response ) => {
         });
 
         return res.status(201).json({
-        success: true,
-        message: "Producto amarrado correctamente al servicio",
-        data: newRelation,
+            success: true,
+            message: "Producto amarrado correctamente al servicio",
+            data: newRelation,
+        });
+
+    } catch ( error ) {
+        return res.status(500).json({
+            status: 500,
+            message: `${ error }`
+        })
+    }
+}
+
+const amarrarColaboradorController = async ( req: Request, res: Response ) => {
+    try {
+
+        const { colaboradorId, serviceId, status } = req.body;
+
+        const newRelation = await amarrarColaboradorService({
+            colaboradorId,
+            serviceId,
+            status: Number(status) || 1,
+        });
+
+        return res.status(201).json({
+            success: true,
+            message: "Colaborador amarrado correctamente al servicio",
+            data: newRelation,
+        });
+
+    } catch ( error ) {
+        return res.status(500).json({
+            status: 500,
+            message: `${ error }`
+        })
+    }
+}
+
+const listColaboresAmarradosController = async ( req: Request, res: Response ) => {
+    try {
+
+        const { serviceId } = req.params;
+
+        if ( !serviceId ) {
+            return res.status(404).json({
+                success: false,
+                message: 'El service id no existe'
+            })
+        }
+
+        const newRelation = await listColaboradorService(serviceId);
+
+        return res.status(201).json({
+            success: true,
+            data: newRelation,
         });
 
     } catch ( error ) {
@@ -180,5 +232,7 @@ export {
     deleteServiceController,
     listActivesController,
     updateServiceController,
-    amarrarProductosController
+    amarrarProductosController,
+    amarrarColaboradorController,
+    listColaboresAmarradosController
 }

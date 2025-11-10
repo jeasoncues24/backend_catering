@@ -1,6 +1,6 @@
 import { Service } from "../interfaces/service.interface";
 import { getEstablishmentByIdRepository } from "../repositories/branches.repository";
-import { addServiceRepository, createServiceProduct, deleteServiceById, getServiceById, getServiceByName, getServicesListRepository, listActivesServicesByEstablishment, listServicesForQuotes, updateServiceById } from "../repositories/service.repository";
+import { addServiceRepository, createServiceColaborador, createServiceProduct, deleteServiceById, getServiceById, getServiceByName, getServicesListRepository, listActivesServicesByEstablishment, listColaboresService, listServicesForQuotes, updateServiceById } from "../repositories/service.repository";
 
 
 export const amarrarProductosService = async (data: {
@@ -21,6 +21,24 @@ export const amarrarProductosService = async (data: {
   // if (existing) throw new Error("Este producto ya está asociado a este servicio.");
 
   const serviceProduct = await createServiceProduct(data);
+
+  return serviceProduct;
+};
+
+export const listColaboradorService = async ( serviceId: string ) => {
+    return await listColaboresService(serviceId)
+}
+
+export const amarrarColaboradorService = async (data: {
+  colaboradorId: string;
+  serviceId: string;
+  status: number;
+}) => {
+  if (!data.colaboradorId || !data.serviceId) {
+    throw new Error("Faltan datos obligatorios: colaboradorId o serviceId");
+  }
+
+  const serviceProduct = await createServiceColaborador(data);
 
   return serviceProduct;
 };

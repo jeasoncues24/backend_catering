@@ -93,6 +93,8 @@ model User {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
   collaborator Collaborator?
+  ColaboradorService ColaboradorService[]
+  EventColaboradorService EventColaboradorService[]
 }
 
 model Company {
@@ -135,6 +137,8 @@ model Establishment  {
   isActive_payment Int @default(0)
   isOnline Int @default(1) 
   isService_house Int @default(0)
+  isNotificacionesAgenda Int @default(1)
+  isNotificacionesPagos Int @default(1)
   banner_path String?
   createdAt    DateTime @default(now())
   updatedAt    DateTime @updatedAt
@@ -155,6 +159,9 @@ model Establishment  {
   BuildYourMenu BuildYourMenu[]
   cotizacion Cotizacion[]
   sale Sale[]
+  warehouse Warehouse[]
+  guiesWarehouse GuidesWarehouse[]
+  GuidesDetails GuidesDetails[]
 }
 
 model Collaborator {
@@ -220,6 +227,8 @@ model Service {
   packageForService packageForService[]
   cotizacionServices CotizacionService[]
   saleService saleService[]
+  ColaboradorService ColaboradorService[]
+  EventColaboradorService EventColaboradorService[]
 }
 
 model ServiceCategory {
@@ -259,6 +268,30 @@ model ProductService {
   updatedAt DateTime @updatedAt
 }
 
+model ColaboradorService {
+  id         String   @id @default(uuid())
+  colaboradorId  String
+  serviceId  String
+  status     Int @default(1)
+  user  User  @relation(fields: [colaboradorId], references: [id])
+  service    Service  @relation(fields: [serviceId], references: [id])
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model EventColaboradorService {
+  id         String   @id @default(uuid())
+  colaboradorId  String
+  serviceId  String
+  agendaId String
+  status     Int @default(1)
+  user  User  @relation(fields: [colaboradorId], references: [id])
+  service    Service  @relation(fields: [serviceId], references: [id])
+  agenda Agenda @relation(fields: [agendaId], references: [id])
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
 
 model Provider {
   id String @id @default(uuid())
@@ -272,6 +305,7 @@ model Provider {
   establishment Establishment @relation(fields: [establishment_id], references: [id])
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
+  guidesWarehouse GuidesWarehouse[]
 }
 
 model StructureMenu {
@@ -341,6 +375,8 @@ model Product {
   packageForProduct packageForProduct[]
   CotizacionProduct CotizacionProduct[]
   saleProduct saleProduct[]
+  GuidesDetails GuidesDetails[]
+  eventInventory EventInventory[]
 }
 
 
@@ -408,6 +444,7 @@ model LocalEvent {
   establishment_id String 
   establishment Establishment @relation(fields: [establishment_id], references: [id])
   packageService packageService[]
+  agenda Agenda[]
 }
 
 model packageServiceGift {
@@ -519,6 +556,7 @@ model Sale {
   saleMenu SaleMenu[]
   salePayment SalePayment[]
   agenda Agenda?
+  electronicVoucher ElectronicVoucher?
 }
 
 model saleProduct {
@@ -587,6 +625,22 @@ model SalePayment {
 }
 
 
+model EventInventory {
+  id String @id @default(uuid())
+  agenda_id String
+  agenda Agenda @relation(fields: [agenda_id], references: [id])
+  product_id String
+  product Product @relation(fields: [product_id], references: [id])
+  quantity_required Int // cantidad requerida para el evento
+  quantity_assigned Int @default(0) // cantidad asignada
+  warehouse_id String?
+  warehouse Warehouse? @relation(fields: [warehouse_id], references: [id])
+  status Int @default(1) // 1: Pendiente, 2: Asignado, 3: Completado
+  notes String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
 model Agenda {
   id String @id @default(uuid())
   sale_id String @unique
@@ -599,11 +653,152 @@ model Agenda {
   guests_count Int?
   notes String?
   status Int @default(1) // 1: Confirmado, 2: Pendiente, 3: Cancelado
+
+  operation_status String @default("PLANNED") // PLANNED, PICKING, LOADED, IN_EVENT, RETURNING, RECONCILE, CLOSED
+  operation_started_at DateTime? // Timestamp de inicio
+  operation_closed_at DateTime? // Timestamp de cierre
+  
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
+  localEvent LocalEvent? @relation(fields: [location], references: [id])
+  eventInventory EventInventory[]
+  EventColaboradorService EventColaboradorService[]
+}
+
+
+model Warehouse {
+  id String @id @default(uuid())
+  name String 
+  ubication String
+  status Int @default(1)
+  establishmentId String 
+  establishment Establishment @relation(fields: [establishmentId], references: [id])
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  GuidesDetails GuidesDetails[]
+  eventInventory EventInventory[]
+}
+
+
+model GuidesWarehouse {
+  id String @id @default(uuid())
+  establishmentId String
+  establishment Establishment @relation(fields: [establishmentId], references: [id])
+  userId String 
+  date_guide String 
+  type_guide Int // 1 => entrada, 2 => salida
+  number_guide String 
+  provider_id String 
+  provider Provider @relation(fields: [provider_id], references: [id])
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  GuidesDetails GuidesDetails[]
+}
+
+
+model GuidesDetails {
+  id String @id @default(uuid())
+  establishmentId String
+  establishment Establishment @relation(fields: [establishmentId], references: [id])
+  userId String 
+  date String
+  quantity Int @default(1)
+  cost Decimal @db.Decimal(10,2)
+  product_id String
+  product Product @relation(fields: [product_id], references: [id])
+  warehouse_id String 
+  warehouse Warehouse @relation(fields: [warehouse_id], references: [id])
+  guideId String 
+  guideWarehouse GuidesWarehouse @relation(fields: [guideId], references: [id])
+  status Int @default(1)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model ElectronicVoucher {
+  id String @id @default(uuid())
+  
+  // Relación con venta
+  sale_id String @unique
+  sale Sale @relation(fields: [sale_id], references: [id])
+  
+  // Tipo de comprobante
+  voucher_type String // "factura" o "boleta"
+  series String // F001, B001, etc.
+  number String // 00000001, 00000002, etc.
+  full_number String // F001-00000001
+  
+  // Fechas
+  issue_date DateTime
+  due_date DateTime?
+  
+  // Condiciones
+  payment_condition String // "contado" o "credito"
+  
+  // Datos del cliente
+  client_document_type String // "ruc" o "dni"
+  client_document_number String
+  client_name String // Razón Social o Nombre
+  client_email String
+  client_phone String?
+  client_address String
+  
+  // Montos
+  subtotal Decimal @db.Decimal(10,2) // Sin IGV
+  igv Decimal @db.Decimal(10,2) // 18%
+  total Decimal @db.Decimal(10,2) // Subtotal + IGV
+  
+  // Items (opcional, puedes guardar como JSON)
+  items Json?
+  
+  // Observaciones
+  observations String? @db.Text
+  
+  // Archivos generados
+  xml_url String? // URL del XML
+  pdf_url String? // URL del PDF
+  cdr_url String? // URL del CDR (Constancia de Recepción)
+  
+  // Respuesta de SUNAT
+  sunat_code String? // Código de respuesta (0 = aceptado)
+  sunat_description String? @db.Text
+  sunat_response Json? // Respuesta completa de SUNAT
+  
+  // Estado del comprobante
+  status Int @default(1) // 1: Generado, 2: Aceptado, 3: Rechazado, 4: Anulado
+  
+  // Metadatos
+  created_by String? // Usuario que generó
+  sent_to_client Int @default(0) // 0: No enviado, 1: Enviado
+  sent_at DateTime? // Fecha de envío al cliente
+  
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  
+  @@index([sale_id])
+  @@index([voucher_type])
+  @@index([full_number])
+  @@index([status])
+}
+
+model VoucherSequence {
+  id String @id @default(uuid())
+  establishment_id String
+  voucher_type String // "factura" o "boleta"
+  series String // F001, B001, etc.
+  last_number Int @default(0) // Último número usado
+  year Int // Año para resetear la secuencia
+  
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  
+  @@unique([establishment_id, voucher_type, series, year])
+  @@index([establishment_id, voucher_type, series])
 }
 
 enum TypeEvent {
   SOCIALES
   CORPORATIVOS
 }
+
+
