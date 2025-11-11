@@ -1,5 +1,5 @@
 import { Establishment } from "../interfaces/establishment.interface";
-import { countEstablishmentsByCompany, createEstablishmentRepository, deleteEstablishmentRepository, getBranchesCompany, getEstablishmentByIdRepository, getInformationForBranchRepository, getStatusForBranch, updateEstablishmentRepository, updateStatusForBranch } from "../repositories/branches.repository";
+import { countEstablishmentsByCompany, deleteEstablishmentRepository, getBranchesCompany, getEstablishmentByIdRepository, getInformationForBranchRepository, getStatusForBranch, updateEstablishmentRepository, updateStatusForBranch } from "../repositories/branches.repository";
 
 import { getCompanyByIdRepository } from "../repositories/company.repository";
 
@@ -13,31 +13,31 @@ export const getBranchCompanyService = async ( companyId: string ) => {
     return branchCompany;
 }
 
-export const addBranchService = async ( data: Partial<Establishment> ) => {
+// export const addBranchService = async ( data: Partial<Establishment> ) => {
 
-    if ( !data.name  ) {
-        throw new Error("Debe ingresar el nombre de la sucursal.");
-    }
+//     if ( !data.name  ) {
+//         throw new Error("Debe ingresar el nombre de la sucursal.");
+//     }
 
-    // Validar de que el id de la empresa exista
-    const company = await getCompanyByIdRepository(data.companyId!);
+//     // Validar de que el id de la empresa exista
+//     const company = await getCompanyByIdRepository(data.companyId!);
 
-    if ( !company ) {
-        throw new Error("La empresa no existe, vuelve a intentarlo");
-    }
-
-
-
-    // Verificar cuántas sucursales tiene actualmente la empresa
-    const currentBranchesCount = await countEstablishmentsByCompany(company.id);
+//     if ( !company ) {
+//         throw new Error("La empresa no existe, vuelve a intentarlo");
+//     }
 
 
-    // Crear la nueva sucursal
-    const newBranch = await createEstablishmentRepository(data);
 
-    return newBranch;
+//     // Verificar cuántas sucursales tiene actualmente la empresa
+//     const currentBranchesCount = await countEstablishmentsByCompany(company.id);
 
-}
+
+//     // Crear la nueva sucursal
+//     const newBranch = await createEstablishmentRepository(data);
+
+//     return newBranch;
+
+// }
 
 export const updateEstablishmentService = async ( id: string, data: Partial<Establishment> ) => {
 

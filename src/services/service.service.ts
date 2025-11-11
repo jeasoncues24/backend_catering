@@ -1,8 +1,30 @@
+import { prisma } from "../config/db";
 import { Service } from "../interfaces/service.interface";
 import { getEstablishmentByIdRepository } from "../repositories/branches.repository";
 import { addServiceRepository, createServiceColaborador, createServiceProduct, deleteServiceById, getServiceById, getServiceByName, getServicesListRepository, listActivesServicesByEstablishment, listColaboresService, listServicesForQuotes, updateServiceById } from "../repositories/service.repository";
 
 
+// export const amarrarProductosService = async (data: {
+//   productId: string;
+//   serviceId: string;
+//   status: number;
+// }) => {
+//   if (!data.productId || !data.serviceId) {
+//     throw new Error("Faltan datos obligatorios: productId o serviceId");
+//   }
+
+//   // Puedes validar si ya existe la relación
+//   // (para evitar duplicados)
+//   // Ejemplo:
+//   // const existing = await prisma.serviceProduct.findFirst({
+//   //   where: { productId: data.productId, serviceId: data.serviceId },
+//   // });
+//   // if (existing) throw new Error("Este producto ya está asociado a este servicio.");
+
+//   const serviceProduct = await createServiceProduct(data);
+
+//   return serviceProduct;
+// };
 export const amarrarProductosService = async (data: {
   productId: string;
   serviceId: string;
@@ -12,17 +34,77 @@ export const amarrarProductosService = async (data: {
     throw new Error("Faltan datos obligatorios: productId o serviceId");
   }
 
-  // Puedes validar si ya existe la relación
-  // (para evitar duplicados)
-  // Ejemplo:
-  // const existing = await prisma.serviceProduct.findFirst({
-  //   where: { productId: data.productId, serviceId: data.serviceId },
-  // });
-  // if (existing) throw new Error("Este producto ya está asociado a este servicio.");
-
-  const serviceProduct = await createServiceProduct(data);
+  // Utilizamos upsert: Si la relación ya existe, no hace nada (o la actualiza).
+  // Si no existe, la crea. Esto garantiza la unicidad y evita errores de duplicado.
+  const serviceProduct = await prisma.productService.upsert({
+    where: {
+      // Necesitas una restricción @unique([productId, serviceId]) en tu modelo Prisma 
+      // para que esta cláusula 'where' funcione correctamente con una clave compuesta.
+      productId_serviceId: {
+        productId: data.productId,
+        serviceId: data.serviceId,
+      },
+    },
+    update: { 
+      // Opcional: Si quieres asegurarte de que el status siempre sea 1 cuando se "re-vincula"
+      status: data.status, 
+    }, 
+    create: {
+      productId: data.productId,
+      serviceId: data.serviceId,
+      status: data.status,
+    },
+  });
 
   return serviceProduct;
+};
+
+export const desvincularProductosService = async (productId: string, serviceId: string) => {
+    if (!productId || !serviceId) {
+        throw new Error("Faltan datos obligatorios: productId o serviceId para desvincular");
+    }
+
+    // Busca y elimina el registro único
+    const deletedRelation = await prisma.productService.delete({
+        where: {
+            productId_serviceId: {
+                productId: productId,
+                serviceId: serviceId,
+            },
+        },
+    });
+
+    return deletedRelation;
+};
+
+export const getLinkedProductsByServiceId = async (serviceId: string) => {
+    if (!serviceId) {
+        throw new Error("serviceId es obligatorio para listar vínculos.");
+    }
+    
+    // 1. Busca todos los vínculos para ese serviceId
+    const linkedRelations = await prisma.productService.findMany({
+        where: { serviceId },
+        // 2. Incluimos los datos del producto para que el frontend los pueda mostrar si es necesario,
+        // aunque el frontend solo use el ID.
+        include: {
+            product: {
+                select: {
+                    id: true,
+                    name: true,
+                    // Añade aquí cualquier otro campo que el frontend pueda necesitar
+                }
+            }
+        }
+    });
+
+    // Devolvemos el array de productos (o el objeto de vínculo si prefieres)
+    // El frontend espera un array de objetos que contengan el 'productId' o 'id'
+    return linkedRelations.map(rel => ({
+        // Esta es la clave que el frontend mapea a IDs seleccionados:
+        productId: rel.productId, 
+        name: rel.product.name // Dato extra
+    }));
 };
 
 export const listColaboradorService = async ( serviceId: string ) => {

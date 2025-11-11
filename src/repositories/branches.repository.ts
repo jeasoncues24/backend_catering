@@ -40,21 +40,45 @@ export const updateStatusForBranch = async ( establishment_id: string, status: n
     })
 }
 
-export const updateEstablishmentRepository = async ( id: string, data: Partial<Establishment>) => {
-    const updateData: Record<string, any> = {};
-    if (data.name !== undefined) updateData.name = data.name;
-    if (data.city !== undefined) updateData.city = data.city;
-    if (data.province !== undefined) updateData.province = data.province;
-    if (data.district !== undefined) updateData.district = data.district;
-    if (data.status !== undefined) updateData.status = data.status;
-    if (data.banner_path !== undefined) updateData.banner_path = data.banner_path;
+export const updateEstablishmentRepository = async (
+  id: string,
+  data: Partial<Establishment> | any
+) => {
+  const {
+    correlativo_factura,
+    correlativo_boleta,
+    // saca aquí cualquier campo que necesites tratar distinto
+    ...rest
+  } = data
 
-    return await prisma.establishment.update({
-        where: { id },
-        data: updateData
-    })
+  return await prisma.establishment.update({
+    where: { id },
+    data: {
+      // el resto de campos se pasan directo
+      ...rest,
+
+      // si viene correlativo_factura, lo casteamos bien
+      ...(correlativo_factura !== undefined && correlativo_factura !== null && correlativo_factura !== ""
+        ? {
+            correlativo_factura:
+              typeof correlativo_factura === "string"
+                ? parseInt(correlativo_factura, 10)
+                : correlativo_factura
+          }
+        : {}),
+
+      // mismo patrón si correlativo_boleta también es Int
+      ...(correlativo_boleta !== undefined && correlativo_boleta !== null && correlativo_boleta !== ""
+        ? {
+            correlativo_boleta:
+              typeof correlativo_boleta === "string"
+                ? parseInt(correlativo_boleta, 10)
+                : correlativo_boleta
+          }
+        : {})
+    }
+  })
 }
-
 
 export const deleteEstablishmentRepository = async ( id: string ) => {
     return await prisma.establishment.delete({
@@ -81,44 +105,45 @@ export const infoBranchById = async ( id: string ) => {
 } 
 
 
-export const createEstablishmentRepository = async ( data: Partial<Establishment> ) => {
-    return await prisma.$transaction(async (tx) => {
-        const branch = await prisma.establishment.create({
-            data: {
-                name: data.name!,
-                city: data.city!,
-                district: data.district!,
-                province: data.province!,
-                companyId: data.companyId!,
-                status: 1
-            }
-        });
+// export const createEstablishmentRepository = async ( data: Partial<Establishment> ) => {
+//     return await prisma.$transaction(async (tx) => {
+//         const branch = await prisma.establishment.create({
+//             data: {
+//                 name: data.name!,
+//                 city: data.city!,
+//                 district: data.district!,
+//                 province: data.province!,
+//                 companyId: data.companyId!,
+//                 // serie_boleta: data.
+//                 status: 1
+//             }
+//         });
 
-        const currency = await tx.coinsCompany.create({
-            data: {
-                establishment_id: branch.id,
-                coins_id: 1,
-                status: 1
-            }
-        });
+//         const currency = await tx.coinsCompany.create({
+//             data: {
+//                 establishment_id: branch.id,
+//                 coins_id: 1,
+//                 status: 1
+//             }
+//         });
 
-        const payment = await tx.payments.create({
-            data: {
-                establishment_id: branch.id,
-                coins_id: currency.id,
-                name: 'Efectivo',
-                description: 'Efectivo',
-                status: 1
-            }
-        });
+//         const payment = await tx.payments.create({
+//             data: {
+//                 establishment_id: branch.id,
+//                 coins_id: currency.id,
+//                 name: 'Efectivo',
+//                 description: 'Efectivo',
+//                 status: 1
+//             }
+//         });
 
-        return {
-            branch,
-            currency,
-            payment
-        }
-    })
-}
+//         return {
+//             branch,
+//             currency,
+//             payment
+//         }
+//     })
+// }
 
 
 export const getInformationForBranchRepository = async ( tradename: string, branch: string ) => {

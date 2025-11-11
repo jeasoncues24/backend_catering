@@ -1,7 +1,7 @@
 import { Response, Request } from "express";
 
 import uploadBanner from "../middlewares/upload.banner";
-import { addBranchService, deleteEstablishmentService, getBranchCompanyService, getEstablishmentService, getInformationForBranchService, getStatusForBranchService, updateEstablishmentService, updateStatusForBranchService } from "../services/branches.service";
+import { deleteEstablishmentService, getBranchCompanyService, getEstablishmentService, getInformationForBranchService, getStatusForBranchService, updateEstablishmentService, updateStatusForBranchService } from "../services/branches.service";
 
 const getBranchesForCompanyControllers = async ( req: Request, res: Response ) => {
     try {
@@ -19,24 +19,24 @@ const getBranchesForCompanyControllers = async ( req: Request, res: Response ) =
     }
 } 
 
-const addBranchController = async ( req: Request, res: Response ) => {
-    try {
+// const addBranchController = async ( req: Request, res: Response ) => {
+//     try {
 
-        const body = req.body;
-        const newBranch = await addBranchService(body);
-        return res.status(201).json({
-            status: 201,
-            message: "Se guardo correctamente la sucursal",
-            data: newBranch
-        })
+//         const body = req.body;
+//         const newBranch = await addBranchService(body);
+//         return res.status(201).json({
+//             status: 201,
+//             message: "Se guardo correctamente la sucursal",
+//             data: newBranch
+//         })
 
-    } catch ( error ) {
-        return res.status(500).json({
-            status: false,
-            message: `${ error }`
-        })
-    }
-}
+//     } catch ( error ) {
+//         return res.status(500).json({
+//             status: false,
+//             message: `${ error }`
+//         })
+//     }
+// }
 
 const updateBranchController = async ( req: Request, res: Response ) => {
     try {
@@ -51,14 +51,14 @@ const updateBranchController = async ( req: Request, res: Response ) => {
             const { id } = req.params;
             const { body } = req;
 
-            const imagePath = req.file?.filename || "";
+            // const imagePath = req.file?.filename || "";
 
-            const updateBody = {
-                ...body,
-                banner_path: imagePath ? `/uploads/banners/${imagePath}` : undefined
-            };
+            // const updateBody = {
+            //     ...body,
+            //     banner_path: imagePath ? `/uploads/banners/${imagePath}` : undefined
+            // };
 
-            const updateEstablisment = await updateEstablishmentService(id!, updateBody);
+            const updateEstablisment = await updateEstablishmentService(id!, body);
 
             return res.status(200).json({
                 status: true,
@@ -179,6 +179,6 @@ export {
     getInformationForBranchController,
     deleteBranchController,
     getEstablishmentController,
-    addBranchController,
+    // addBranchController,
     getStatusForBranchController
 }

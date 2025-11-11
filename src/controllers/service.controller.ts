@@ -1,5 +1,5 @@
 import { Request, Response } from "express";
-import { addServiceS, amarrarColaboradorService, amarrarProductosService, deleteServiceS, getServiceListS, listActivesService, listColaboradorService, listServicesForQuotesService, updateServiceS } from "../services/service.service";
+import { addServiceS, amarrarColaboradorService, amarrarProductosService, deleteServiceS, desvincularProductosService, getLinkedProductsByServiceId, getServiceListS, listActivesService, listColaboradorService, listServicesForQuotesService, updateServiceS } from "../services/service.service";
 import uploadServices from "../middlewares/upload.services";
 
 const addServiceController = async ( req: Request, res: Response ) => {
@@ -59,6 +59,69 @@ const amarrarProductosController = async ( req: Request, res: Response ) => {
             status: 500,
             message: `${ error }`
         })
+    }
+}
+
+export const desvincularProductosController = async (req: Request, res: Response) => {
+    try {
+        // Usamos query parameters, como sugerimos en el frontend
+        const { productId, serviceId } = req.query; 
+
+        if (typeof productId !== 'string' || typeof serviceId !== 'string') {
+             return res.status(400).json({
+                success: false,
+                message: "productId y serviceId son obligatorios y deben ser cadenas."
+            });
+        }
+        
+      
+        const deletedRelation = await desvincularProductosService(productId, serviceId);
+
+        return res.status(200).json({
+            success: true,
+            message: "Producto desvinculado correctamente del servicio.",
+            data: deletedRelation,
+        });
+
+    } catch (error: any) {
+        if (error.message && error.message.includes('Record to delete does not exist')) {
+             return res.status(404).json({
+                status: 404,
+                message: "El vínculo a eliminar no fue encontrado."
+            });
+        }
+        return res.status(500).json({
+            status: 500,
+            message: `Error al desvincular el producto: ${error.message}`
+        });
+    }
+}
+
+export const getLinkedProductsController = async (req: Request, res: Response) => {
+    try {
+        // Obtenemos el serviceId del parámetro de la URL
+        const { serviceId } = req.params; 
+
+        if (typeof serviceId !== 'string') {
+             return res.status(400).json({
+                success: false,
+                message: "serviceId es obligatorio en la URL."
+            });
+        }
+        
+        const linkedProducts = await getLinkedProductsByServiceId(serviceId);
+
+        return res.status(200).json({
+            success: true,
+            message: "Productos vinculados obtenidos correctamente.",
+            data: linkedProducts,
+        });
+
+    } catch (error: any) {
+        return res.status(500).json({
+            status: 500,
+            message: `Error al obtener productos vinculados: ${error.message}`
+        });
     }
 }
 

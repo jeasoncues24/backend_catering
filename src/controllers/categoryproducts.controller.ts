@@ -1,5 +1,5 @@
 import { Request, Response } from "express";
-import { addCategoryProductService, listCategoryProductsActiveService, listCategoryProductService } from "../services/categoryproduct.service";
+import { addCategoryProductService, deleteCategoryProductS, listCategoryProductsActiveService, listCategoryProductService, updateCategoryProductS } from "../services/categoryproduct.service";
 
 export const addCategoryProductController = async ( req: Request, res: Response ) => {
     try {
@@ -18,6 +18,42 @@ export const addCategoryProductController = async ( req: Request, res: Response 
         return res.status(500).json({
             status: false,
             message: ``
+        })
+    }
+}
+
+
+export const deleteCategoryProductController = async ( req: Request, res: Response ) => {
+    try {
+
+        const { id } = req.params;
+        const deleteCategoryService = await deleteCategoryProductS(id!);
+        return res.status(200).json({
+            status: 200,
+            data: deleteCategoryService
+        });
+
+    } catch ( error ) {
+        return res.status(500).json({
+            status: 500,
+            message: `${ error }`
+        });
+    }
+}
+
+export const updateCategoryProductController = async ( req: Request, res: Response ) => {
+    try {
+        const { id } = req.params;
+        const { name, description, status } = req.body;
+        const updateCategory = await updateCategoryProductS(id!, { name, description, status });
+        return res.status(200).json({
+            status: 200,
+            data: updateCategory
+        });
+    } catch ( error ) {
+        return res.status(500).json({
+            status: 500,
+            message: `${ error }`
         })
     }
 }

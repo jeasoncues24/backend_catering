@@ -1,7 +1,7 @@
 import { Router } from "express";
 import { verifyTokenMiddleware } from "../utils/jwt.handle";
 import { asyncHandler } from "../utils/asyncHandler";
-import { addServiceController, deleteServiceController, getServiceListController, listActivesController, listServicesForQuotesController, updateServiceController, amarrarProductosController, amarrarColaboradorController, listColaboresAmarradosController } from "../controllers/service.controller";
+import { addServiceController, deleteServiceController, getServiceListController, listActivesController, listServicesForQuotesController, updateServiceController, amarrarProductosController, amarrarColaboradorController, listColaboresAmarradosController, desvincularProductosController, getLinkedProductsController } from "../controllers/service.controller";
 
 const router = Router();
 
@@ -14,5 +14,7 @@ router.post('/quotes', asyncHandler(listServicesForQuotesController));
 router.post('/amarrar-productos', asyncHandler(amarrarProductosController));
 router.post('/amarrar-colaborador', asyncHandler(amarrarColaboradorController));
 router.get('/list-colaboradores/:serviceId', asyncHandler(listColaboresAmarradosController))
+router.delete('/delete/unlink', asyncHandler(desvincularProductosController));
+router.get('/linked/:serviceId', getLinkedProductsController);
 
 export { router };

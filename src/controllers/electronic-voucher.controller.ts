@@ -90,10 +90,24 @@ export const generateElectronicVoucherController = async (req: Request, res: Res
       }
     }
 
+    // Obtener serie desde la sucursal (establecimiento)
+    const establishment = await prisma.establishment.findUnique({
+      where: { id: sale.establishment_id },
+    })
+
+    if (!establishment) {
+      return res.status(400).json({
+        status: false,
+        message: "No se encontró la sucursal asociada a la venta"
+      })
+    }
+
+
     // Generar número correlativo
-    const series = voucherType === 'factura' 
-      ? facturacionConfig.series.factura 
-      : facturacionConfig.series.boleta;
+    const series =
+          voucherType === "factura"
+            ? establishment.serie_factura || facturacionConfig.series.factura
+            : establishment.serie_boleta || facturacionConfig.series.boleta
     
     const voucherNumber = await getNextVoucherNumber(
       sale.establishment_id,
@@ -214,47 +228,57 @@ export const generateElectronicVoucherController = async (req: Request, res: Res
  */
 async function getNextVoucherNumber(
   establishmentId: string,
-  voucherType: string,
+  voucherType: "factura" | "boleta",
   series: string
 ): Promise<string> {
-  const currentYear = new Date().getFullYear();
+  // Usamos transacción para evitar problemas de concurrencia
+  return await prisma.$transaction(async (tx) => {
+    const establishment = await tx.establishment.findUnique({
+      where: { id: establishmentId },
+      select: {
+        serie_factura: true,
+        serie_boleta: true,
+        correlativo_factura: true,
+        correlativo_boleta: true,
+      },
+    })
 
-  // Buscar o crear secuencia
-  let sequence = await prisma.voucherSequence.findUnique({
-    where: {
-      establishment_id_voucher_type_series_year: {
-        establishment_id: establishmentId,
-        voucher_type: voucherType,
-        series: series,
-        year: currentYear
-      }
+    if (!establishment) {
+      throw new Error("No se encontró la sucursal para generar el correlativo")
     }
-  });
 
-  if (!sequence) {
-    // Crear nueva secuencia para este año
-    sequence = await prisma.voucherSequence.create({
+    // Validar que la serie enviada coincide con la serie de la sucursal (opcional pero sano)
+    if (
+      (voucherType === "factura" && series !== establishment.serie_factura) ||
+      (voucherType === "boleta" && series !== establishment.serie_boleta)
+    ) {
+      throw new Error("La serie del comprobante no coincide con la serie configurada en la sucursal")
+    }
+
+    // Determinar campo a actualizar según el tipo
+    const field =
+      voucherType === "factura"
+        ? "correlativo_factura"
+        : "correlativo_boleta"
+
+    const currentValue =
+      voucherType === "factura"
+        ? establishment.correlativo_factura
+        : establishment.correlativo_boleta
+
+    const newNumber = (currentValue || 0) + 1
+
+    // Actualizar correlativo en Establishment
+    await tx.establishment.update({
+      where: { id: establishmentId },
       data: {
-        establishment_id: establishmentId,
-        voucher_type: voucherType,
-        series: series,
-        last_number: 0,
-        year: currentYear
-      }
-    });
-  }
+        [field]: newNumber,
+      },
+    })
 
-  // Incrementar el número
-  const newNumber = sequence.last_number + 1;
-
-  // Actualizar la secuencia
-  await prisma.voucherSequence.update({
-    where: { id: sequence.id },
-    data: { last_number: newNumber }
-  });
-
-  // Retornar número formateado (8 dígitos)
-  return newNumber.toString().padStart(8, '0');
+    // Retornar número formateado (8 dígitos)
+    return newNumber.toString().padStart(8, "0")
+  })
 }
 
 /**

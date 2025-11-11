@@ -140,6 +140,10 @@ model Establishment  {
   isNotificacionesAgenda Int @default(1)
   isNotificacionesPagos Int @default(1)
   banner_path String?
+  serie_factura String 
+  serie_boleta String 
+  correlativo_factura Int @default(0)
+  correlativo_boleta Int @default(0)
   createdAt    DateTime @default(now())
   updatedAt    DateTime @updatedAt
   user  User[]
@@ -266,6 +270,8 @@ model ProductService {
   service    Service  @relation(fields: [serviceId], references: [id])
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
+
+  @@unique([productId, serviceId])
 }
 
 model ColaboradorService {
